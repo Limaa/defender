@@ -1,19 +1,36 @@
 <?php
 
-/**
- * Created by PhpStorm.
- * User: vluzrmos
- * Date: 12/07/15
- * Time: 01:01.
- */
-
 namespace Artesaos\Defender\Testing;
 
+use \Mockery as m;
+use Artesaos\Defender\Contracts\Repositories\PermissionRepository;
 use Artesaos\Defender\Contracts\Repositories\RoleRepository;
+use Artesaos\Defender\Contracts\User as UserContract;
 use Artesaos\Defender\Role;
 
 class CommandsTest extends AbstractTestCase
 {
+    /**
+     * PermissionRepository
+     *
+     * @var m\Mock $permissionRepository
+     */
+    protected $permissionRepository;
+
+    /**
+     * UserContract
+     *
+     * @var  m\Mock $user
+     */
+    protected $user;
+
+    /**
+     * RoleRepository
+     *
+     * @var m\Mock $roleRepository
+     */
+    protected $roleRepository;
+
     /**
      * @inheritdoc
      */
@@ -21,16 +38,16 @@ class CommandsTest extends AbstractTestCase
     {
         parent::setUp();
 
-        $this->migrate([
-            $this->stubsPath('database/migrations'),
-            $this->resourcePath('migrations'),
-        ]);
+        $this->permissionRepository = m::mock(PermissionRepository::class);
+        $this->app->instance(PermissionRepository::class, $this->permissionRepository);
 
-        $this->seed([
-            'UserTableSeeder',
-            'RoleTableSeeder',
-        ]);
+        $this->roleRepository = m::mock(RoleRepository::class);
+        $this->app->instance(RoleRepository::class, $this->roleRepository);
+
+        $this->user = m::mock(UserContract::class);
+        $this->app->instance(UserContract::class, $this->user);
     }
+
 
     /**
      * @inheritdoc
@@ -48,91 +65,77 @@ class CommandsTest extends AbstractTestCase
      */
     public function testCommandShouldMakeAPermission()
     {
-        $this->artisan('defender:make:permission', ['name' => 'a.permission', 'readableName' => 'A permission.']);
+        $permissionName = 'a.permission';
+        $permissionReadableName = 'Just a permission';
 
-        $this->seeInDatabase(
-            config('defender.permission_table', 'permissions'),
-            [
-                'name' => 'a.permission',
-                'readable_name' => 'A permission.',
-            ]
-        );
+        $this->permissionRepository->shouldReceive('create')->once()->with($permissionName, $permissionReadableName);
+
+        $this->artisan('defender:make:permission',
+            ['name' => $permissionName, 'readableName' => $permissionReadableName]);
     }
 
     /**
-     * Creating a permission to User.
+     * Creating a Permission to User
      */
     public function testCommandShouldMakeAPermissionToUser()
     {
-        $this->artisan('defender:make:permission', ['name' => 'user.index', 'readableName' => 'List Users', '--user' => 1]);
+        $permissionName = 'a.permission';
+        $permissionReadableName = 'Just a permission';
+        $userId = 1;
 
-        $this->seeInDatabase(
-            config('defender.permission_table', 'permissions'),
-            [
-                'name' => 'user.index',
-                'readable_name' => 'List Users',
-            ]
-        );
+        $this->permissionRepository->shouldReceive('create')->once()->with($permissionName, $permissionReadableName);
+        $this->user->shouldReceive('findById')->once()->with($userId)->andReturnSelf();
+        $this->user->shouldReceive('attachPermission')->once();
 
-        $user = User::find(1);
-
-        $this->assertEquals('user.index', $user->permissions->where('name', 'user.index')->first()->name);
+        $this->artisan('defender:make:permission',
+            ['name' => $permissionName, 'readableName' => $permissionReadableName, '--user' => $userId]);
     }
 
     /**
-     * Creating a permission to Role.
+     * Creating a Permission to Role
      */
     public function testCommandShouldMakeAPermissionToRole()
     {
-        $this->artisan('defender:make:permission', ['name' => 'user.delete', 'readableName' => 'Remove Users', '--role' => 'admin']);
-        $this->seeInDatabase(
-            config('defender.permission_table', 'permissions'),
-            [
-                'name' => 'user.delete',
-                'readable_name' => 'Remove Users',
-            ]
-        );
+        $permissionName = 'a.permission';
+        $permissionReadableName = 'Just a permission';
+        $roleName = 'Admin';
 
-        /* @var RoleRepository $role */
-        $rolesRepository = app('defender.role');
+        /** @var m\Mock $role */
+        $role = m::mock(Role::class);
 
-        /** @var Role $role */
-        $role = $rolesRepository->findByName('admin');
+        $this->permissionRepository->shouldReceive('create')->once()->with($permissionName, $permissionReadableName);
+        $this->roleRepository->shouldReceive('findByName')->once()->with($roleName)->andReturn($role);
+        $role->shouldReceive('attachPermission')->once();
 
-        $this->assertEquals('user.delete', $role->permissions->where('name', 'user.delete')->first()->name);
+        $this->artisan('defender:make:permission',
+            ['name' => $permissionName, 'readableName' => $permissionReadableName, '--role' => $roleName]);
     }
 
     /**
-     * Creating a Role.
+     * Creating a Role
      */
     public function testCommandShouldMakeARole()
     {
-        $this->artisan('defender:make:role', ['name' => 'a.role']);
+        $roleName = 'Admin';
 
-        $this->seeInDatabase(
-            config('defender.role_table', 'roles'),
-            [
-                'name' => 'a.role',
-            ]
-        );
+        $this->roleRepository->shouldReceive('create')->once()->with($roleName);
+
+        $this->artisan('defender:make:role', ['name' => $roleName]);
     }
 
     /**
-     * Creating a Role to User.
+     * Creating a Role to User
      */
     public function testCommandShouldMakeARoleToUser()
     {
-        $this->artisan('defender:make:role', ['name' => 'user.role', '--user' => 1]);
+        $roleName = 'Admin';
+        $userId = 1;
 
-        $this->seeInDatabase(
-            config('defender.role_table', 'roles'),
-            [
-                'name' => 'user.role',
-            ]
-        );
+        $this->roleRepository->shouldReceive('create')->once()->with($roleName);
+        $this->user->shouldReceive('findById')->once()->with($userId)->andReturnSelf();
+        $this->user->shouldReceive('attachRole')->once();
 
-        $user = User::find(1);
+        $this->artisan('defender:make:role', ['name' => $roleName, '--user' => $userId]);
 
-        $this->assertEquals('user.role', $user->roles->where('name', 'user.role')->first()->name);
     }
 }

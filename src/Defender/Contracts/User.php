@@ -29,5 +29,5 @@ interface User
      * @param array|\Artesaos\Defender\Permission $permission
      * @param array                               $options
      */
-    public function attachPermission($permission, array $options);
+    public function attachPermission($permission, array $options = []);
 }
