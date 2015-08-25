@@ -26,7 +26,7 @@ class EloquentRoleRepository extends AbstractEloquentRepository implements RoleR
      *
      * @param $roleName
      *
-     * @throws \Exception
+     * @throws RoleExistsException
      *
      * @return Role
      */

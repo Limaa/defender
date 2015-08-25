@@ -2,37 +2,14 @@
 
 namespace Artesaos\Defender\Commands;
 
-use Illuminate\Console\Command;
-use Artesaos\Defender\Contracts\Repositories\PermissionRepository;
-use Artesaos\Defender\Contracts\Repositories\RoleRepository;
 use Artesaos\Defender\Contracts\User as UserContract;
+use Artesaos\Defender\Role;
 
 /**
  * Class MakePermission.
  */
-class MakePermission extends Command
+class MakePermission extends AbstractCommand
 {
-    /**
-     * Defender Permissions Repository.
-     *
-     * @var PermissionRepository
-     */
-    protected $permissionRepository;
-
-    /**
-     * Defender Roles Repository.
-     *
-     * @var RoleRepository
-     */
-    protected $roleRepository;
-
-    /**
-     * User which implements UserContract.
-     *
-     * @var UserContract
-     */
-    protected $user;
-
     /**
      * The name and signature of the console command.
      *
@@ -50,22 +27,6 @@ class MakePermission extends Command
      * @var string
      */
     protected $description = 'Create a permission';
-
-    /**
-     * Create a new command instance.
-     *
-     * @param PermissionRepository $permissionRepository
-     * @param RoleRepository       $roleRepository
-     * @param UserContract         $user
-     */
-    public function __construct(PermissionRepository $permissionRepository, RoleRepository $roleRepository, UserContract $user)
-    {
-        parent::__construct();
-
-        $this->permissionRepository = $permissionRepository;
-        $this->roleRepository = $roleRepository;
-        $this->user = $user;
-    }
 
     /**
      * Execute the command.
@@ -91,10 +52,10 @@ class MakePermission extends Command
     /**
      * Create permission.
      *
-     * @param string $name
-     * @param string $readableName
-     *
-     * @return \Artesaos\Defender\Permission
+     * @param string        $name
+     * @param string        $readableName
+     * @param UserContract  $user
+     * @param Role          $role
      */
     protected function createPermission($name, $readableName, $user, $role)
     {
@@ -113,22 +74,11 @@ class MakePermission extends Command
     }
 
     /**
-     * @param int $userId
-     * @return UserContract
-     * @throws \Exception
-     */
-    protected function findUser($userId)
-    {
-        if ($user = $this->user->findById($userId)) {
-            return $user;
-        }
-        throw new \Exception('User Not Found');
-    }
-
-    /**
      * @param string $roleName
-     * @return \Artesaos\Defender\Role
+     *
      * @throws \Exception
+     *
+     * @return Role
      */
     protected function findRole($roleName)
     {
