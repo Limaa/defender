@@ -4,6 +4,7 @@ namespace Artesaos\Defender\Commands;
 
 use Artesaos\Defender\Contracts\User as UserContract;
 use Artesaos\Defender\Role;
+use Carbon\Carbon;
 
 /**
  * Class MakePermission.
@@ -19,7 +20,9 @@ class MakePermission extends AbstractCommand
                             {name : Name of the permission}
                             {readableName : A readable name of the permission}
                             {--user= : User id. Attach permission to user with the provided id}
-                            {--role= : Role name. Attach permission to role with the provided name}';
+                            {--role= : Role name. Attach permission to role with the provided name}
+                            {--temporaryValue= : Value (true|false). To temporarily remove or add a permission to a user or role}
+                            {--expires= : Expires. When the temporary permission expires. A Carbon accepted string}';
 
     /**
      * The console command description.
@@ -29,48 +32,39 @@ class MakePermission extends AbstractCommand
     protected $description = 'Create a permission';
 
     /**
+     * @var array
+     */
+    protected $args;
+
+    /**
      * Execute the command.
      */
     public function handle()
     {
-        $name = $this->argument('name');
-        $readableName = $this->argument('readableName');
-        $user = $this->option('user');
-        $role = $this->option('role');
+        $this->args = [
+            'name'           => $this->argument('name'),
+            'readableName'   => $this->argument('readableName'),
+            'user'           => $this->option('user'),
+            'role'           => $this->option('role'),
+            'temporaryValue' => $this->option('temporaryValue'),
+            'expires'        => $this->option('expires'),
+        ];
 
-        if ($user) {
-            $user = $this->findUser($user);
-        }
+        $this->checkArgs();
 
-        if ($role) {
-            $role = $this->findRole($role);
-        }
+        $this->createPermission();
 
-        $this->createPermission($name, $readableName, $user, $role);
+        $this->attachPermission();
     }
 
     /**
-     * Create permission.
-     *
-     * @param string        $name
-     * @param string        $readableName
-     * @param UserContract  $user
-     * @param Role          $role
+     * Creates the permission.
      */
-    protected function createPermission($name, $readableName, $user, $role)
+    protected function createPermission()
     {
         // permissionRepository->create() throwsException when permission already exists
-        $permission = $this->permissionRepository->create($name, $readableName);
+        $this->args['permission'] = $this->permissionRepository->create($this->args['name'], $this->args['readableName']);
         $this->info('Permission created successfully');
-
-        if ($user) {
-            $user->attachPermission($permission);
-            $this->info('Permission attached successfully to user');
-        }
-        if ($role) {
-            $role->attachPermission($permission);
-            $this->info('Permission attached successfully to role');
-        }
     }
 
     /**
@@ -86,5 +80,53 @@ class MakePermission extends AbstractCommand
             return $role;
         }
         throw new \Exception('Role Not Found');
+    }
+
+    /**
+     * Check the arguments.
+     */
+    protected function checkArgs()
+    {
+        if ($this->args['temporaryValue'] xor $this->args['expires']) {
+            throw new \RuntimeException('Both arguments --temporaryValue and --expires must be provided to create a temporary permission.');
+        }
+
+        if (($this->args['temporaryValue'] && $this->args['expires']) && !($this->args['user'] || $this->args['role'])) {
+            throw new \RuntimeException('No user or role provided to create a temporary permission.');
+        }
+
+        if ($this->args['user']) {
+            $this->args['user'] = $this->findUser($this->args['user']);
+        }
+
+        if ($this->args['role']) {
+            $this->args['role'] = $this->findRole($this->args['role']);
+        }
+    }
+
+    /**
+     * Attach permission to user or role with temporary when needed.
+     * @return [type] [description]
+     */
+    protected function attachPermission()
+    {
+        $options = [];
+
+        if ($this->args['temporaryValue'] && $this->args['expires']) {
+            $options = [
+                'value'     => $this->args['temporaryValue'],
+                'expires'   => new Carbon($this->args['expires']),
+            ];
+        }
+
+        if ($this->args['user']) {
+            $this->args['user']->attachPermission($this->args['permission'], $options);
+            $this->info('Permission attached successfully to user');
+        }
+
+        if ($this->args['role']) {
+            $this->args['role']->attachPermission($this->args['permission'], $options);
+            $this->info('Permission attached successfully to role');
+        }
     }
 }

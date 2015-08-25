@@ -4,7 +4,9 @@ namespace Artesaos\Defender\Testing\Commands;
 
 use Artesaos\Defender\Exceptions\PermissionExistsException;
 use Artesaos\Defender\Role;
+use Artesaos\Defender\Permission;
 use Mockery as m;
+use Carbon\Carbon;
 
 class MakePermissionTest extends AbstractCommandTestCase
 {
@@ -132,5 +134,123 @@ class MakePermissionTest extends AbstractCommandTestCase
 
         $this->artisan('defender:make:permission',
             ['name' => $permissionName, 'readableName' => $permissionReadableName, '--role' => $roleName]);
+    }
+
+    /**
+     * Throw RuntimeException when temporaryValue is provided and expire is not.    
+     */
+    public function testCommandShouldThrowRuntimeExceptionWhenTemporaryValueIsProvidedAndExpireIsNot()
+    {
+        $this->setExpectedException(\RuntimeException::class);
+
+        $this->artisan('defender:make:permission', [
+            'name'              => 'a.permission',
+            'readableName'      => 'Just a permission',
+            '--user'            => 1,
+            '--temporaryValue'  => true,
+            '--expires'         => null,
+        ]);
+    }
+
+    /**
+     * Throw RuntimeException when temporaryValue is not provided and expire is.
+     */
+    public function testCommandShouldThrowRuntimeExceptionWhenTemporaryValueIsNotProvidedAndExpireIs()
+    {
+        $this->setExpectedException(\RuntimeException::class);
+
+        $this->artisan('defender:make:permission', [
+            'name'              => 'a.permission',
+            'readableName'      => 'Just a permission',
+            '--user'            => 1,
+            '--temporaryValue'  => null,
+            '--expires'         => 'tomorrow',
+        ]);
+    }
+
+    /**
+     * Throw RuntimeException when User or Role are not provided.
+     */
+    public function testCommandShouldThrowRuntimeExceptionWhenMakingTemporaryPermissionAndUserOrRoleAreNotProvided()
+    {
+        $this->setExpectedException(\RuntimeException::class);
+
+        $this->artisan('defender:make:permission', [
+            'name'              => 'a.permission',
+            'readableName'      => 'Just a permission',
+            '--temporaryValue'  => true,
+            '--expires'          => 'tomorrow',
+        ]);
+    }
+
+    /**
+     * Creating temporary Permission to User.
+     */
+    public function testCommandShouldMakeTemporaryPermissionToUser()
+    {
+        $permissionName = 'a.permission';
+        $permissionReadableName = 'Just a permission';
+        $userId = 1;
+        $temporaryValue = true;
+        $expire = 'tomorrow';
+
+        $permission = m::mock(Permission::class);
+
+        $this->permissionRepository
+            ->shouldReceive('create')
+            ->once()
+            ->with($permissionName, $permissionReadableName)
+            ->andReturn($permission);
+
+        $this->user->shouldReceive('findById')->once()->with($userId)->andReturnSelf();
+
+        $this->user->shouldReceive('attachPermission')->once()->with($permission, [
+            'value' => $temporaryValue,
+            'expires' => new Carbon($expire),
+        ]);
+
+        $this->artisan('defender:make:permission', [
+            'name'              => $permissionName,
+            'readableName'      => $permissionReadableName,
+            '--user'            => $userId,
+            '--temporaryValue'  => $temporaryValue,
+            '--expires'         => $expire,
+        ]);
+    }
+
+    /**
+     * Creating temporary Permission to Role.
+     */
+    public function testCommandShouldMakeTemporaryPermissionToRole()
+    {
+        $permissionName = 'a.permission';
+        $permissionReadableName = 'Just a permission';
+        $roleName = 'Admin';
+        $temporaryValue = true;
+        $expire = 'tomorrow';
+
+        $role = m::mock(Role::class);
+        $permission = m::mock(Permission::class);
+
+        $this->permissionRepository
+            ->shouldReceive('create')
+            ->once()
+            ->with($permissionName, $permissionReadableName)
+            ->andReturn($permission);
+
+        $this->roleRepository->shouldReceive('findByName')->once()->with($roleName)->andReturn($role);
+
+        $role->shouldReceive('attachPermission')->once()->with($permission, [
+            'value' => $temporaryValue,
+            'expires' => new Carbon($expire),
+        ]);
+
+        $this->artisan('defender:make:permission', [
+            'name'              => $permissionName,
+            'readableName'      => $permissionReadableName,
+            '--role'            => $roleName,
+            '--temporaryValue'  => $temporaryValue,
+            '--expires'         => $expire,
+        ]);
     }
 }
