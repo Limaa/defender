@@ -158,16 +158,4 @@ class EloquentRoleRepositoryTest extends AbstractTestCase
             ]
         );
     }
-
-    /**
-     * @inheritdoc
-     * @param \Illuminate\Foundation\Application $app
-     * @return array
-     */
-    protected function getPackageProviders($app)
-    {
-        return [
-            'Artesaos\Defender\Providers\DefenderServiceProvider',
-        ];
-    }
 }

@@ -74,17 +74,18 @@ class MakePermission extends Command
     {
         $name = $this->argument('name');
         $readableName = $this->argument('readableName');
-        $userId = $this->option('user');
-        $roleName = $this->option('role');
-        $permission = $this->createPermission($name, $readableName);
+        $user = $this->option('user');
+        $role = $this->option('role');
 
-        if ($userId) {
-            $this->attachPermissionToUser($permission, $userId);
+        if ($user) {
+            $user = $this->findUser($user);
         }
 
-        if ($roleName) {
-            $this->attachPermissionToRole($permission, $roleName);
+        if ($role) {
+            $role = $this->findRole($role);
         }
+
+        $this->createPermission($name, $readableName, $user, $role);
     }
 
     /**
@@ -95,44 +96,45 @@ class MakePermission extends Command
      *
      * @return \Artesaos\Defender\Permission
      */
-    protected function createPermission($name, $readableName)
+    protected function createPermission($name, $readableName, $user, $role)
     {
-        // No need to check is_null($permission) as create() throwsException
+        // permissionRepository->create() throwsException when permission already exists
         $permission = $this->permissionRepository->create($name, $readableName);
         $this->info('Permission created successfully');
 
-        return $permission;
-    }
-
-    /**
-     * Attach Permission to user.
-     *
-     * @param \Artesaos\Defender\Permission $permission
-     * @param int                           $userId
-     */
-    protected function attachPermissionToUser($permission, $userId)
-    {
-        // Check if user exists
-        if ($user = $this->user->findById($userId)) {
+        if ($user) {
             $user->attachPermission($permission);
             $this->info('Permission attached successfully to user');
-        } else {
-            $this->error('Not possible to attach permission. User not found');
+        }
+        if ($role) {
+            $role->attachPermission($permission);
+            $this->info('Permission attached successfully to role');
         }
     }
 
     /**
-     * @param \Artesaos\Defender\Permission $permission
-     * @param string                           $roleName
+     * @param int $userId
+     * @return UserContract
+     * @throws \Exception
      */
-    protected function attachPermissionToRole($permission, $roleName)
+    protected function findUser($userId)
     {
-        // Check if role exists
-        if ($role = $this->roleRepository->findByName($roleName)) {
-            $role->attachPermission($permission);
-            $this->info('Permission attached successfully to role');
-        } else {
-            $this->error('Not possible to attach permission. Role not found');
+        if ($user = $this->user->findById($userId)) {
+            return $user;
         }
+        throw new \Exception('User Not Found');
+    }
+
+    /**
+     * @param string $roleName
+     * @return \Artesaos\Defender\Role
+     * @throws \Exception
+     */
+    protected function findRole($roleName)
+    {
+        if ($role = $this->roleRepository->findByName($roleName)) {
+            return $role;
+        }
+        throw new \Exception('Role Not Found');
     }
 }

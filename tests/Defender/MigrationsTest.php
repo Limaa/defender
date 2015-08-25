@@ -109,18 +109,4 @@ class MigrationsTest extends AbstractTestCase
             }
         }
     }
-
-    /**
-     * Package service provider.
-     *
-     * @param \Illuminate\Contracts\Foundation\Application $app
-     *
-     * @return array
-     */
-    public function getPackageProviders($app)
-    {
-        return [
-            'Artesaos\Defender\Providers\DefenderServiceProvider',
-        ];
-    }
 }

@@ -124,4 +124,15 @@ abstract class AbstractTestCase extends TestCase
 
         $app['config']->set('auth.model', 'Artesaos\Defender\Testing\User');
     }
+
+    /**
+     * @inheritdoc
+     * @return array
+     */
+    protected function getPackageProviders($app)
+    {
+        return [
+            'Artesaos\Defender\Providers\DefenderServiceProvider',
+        ];
+    }
 }
